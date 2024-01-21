@@ -22,9 +22,9 @@ const fileDB = {
     },
 
     async addItem(item: Message) {
-        const genId = crypto.randomUUID();
-        const dateTime = new Date().toISOString();
-        const message = {genId, dateTime, ...item};
+        const id = crypto.randomUUID();
+        const datetime = new Date().toISOString();
+        const message = {id, datetime, ...item};
 
         data.push(message);
         await this.save();

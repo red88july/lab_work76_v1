@@ -1,35 +1,62 @@
 import {Router} from "express";
-import crypto from "crypto";
-import {Message, RequestPostMessage} from "../types";
+
+import {Message} from "../types";
 import fileDB from "../fileDB";
 
 const messageRouter = Router();
 
-messageRouter.post('/', async (req, res) => {
+messageRouter.post('/', async (req, res, next) => {
 
-    if (!('author' in req.body) || !('message' in req.body)) {
-        return res.status(400).send({error: `Invalid key on post request`});
+    try {
+        if (!('author' in req.body) || !('message' in req.body)) {
+            return res.status(422).send({error: `Invalid key on post request`});
+        }
+
+        if (req.body.author === '' || req.body.message === '') {
+            return res.status(422).send({error: `Author or message value is not to be and empty`});
+        }
+
+        const PostMessage: Message = {
+            author: req.body.author,
+            message: req.body.message,
+        }
+
+        const newMessage = await fileDB.addItem(PostMessage);
+        res.json(newMessage);
+    } catch (e) {
+        next(e);
     }
-
-    if (req.body.author === '' || req.body.message === '') {
-        return res.status(400).send({error: `Author or message value is not to be and empty`});
-    }
-
-    const PostMessage: Message = {
-        author: req.body.author,
-        message: req.body.message,
-    }
-
-    const newMessage = await fileDB.addItem(PostMessage);
-    res.json(newMessage);
 });
 
-messageRouter.get('/', async (req, res) => {
-    const getAllMessages = await fileDB.getItems();
+messageRouter.get('/', async (req, res, next) => {
+    try {
+        const getAllMessages = await fileDB.getItems();
+        const queryDate = req.query.datetime as string;
 
-    console.log(getAllMessages);
+        if (queryDate !== undefined) {
+            const date = new Date(queryDate);
 
-    res.json(getAllMessages);
+            if (isNaN(date.getTime())) {
+                return res.status(400).send({ error: `Invalid datetime format` });
+            }
+
+            const filteredMessages = getAllMessages.filter(post => {
+                const messageTimestamp = new Date(post.datetime);
+                return messageTimestamp > date;
+            });
+
+            if (filteredMessages.length === 0) {
+                return res.json([]);
+            } else {
+                return res.json(filteredMessages);
+            }
+
+        } else {
+            res.json(getAllMessages);
+        }
+    } catch (e) {
+        next(e);
+    }
 });
 
 export default messageRouter;
